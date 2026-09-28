@@ -517,8 +517,23 @@ describe("HQBase Mail API", () => {
       expect(await domainStates()).toEqual({ mbx_api: true, mbx_api_off: true });
 
       const v2 = await apiFetch("/api/v2/mailboxes", readToken);
+      expect(v2.status, await v2.clone().text()).toBe(200);
       const v2Mailboxes = (await v2.json()) as Array<Record<string, unknown>>;
-      expect(v2Mailboxes.every((mailbox) => !("domainEnabled" in mailbox))).toBe(true);
+      expect(v2Mailboxes).toHaveLength(2);
+      for (const mailbox of v2Mailboxes) {
+        expect(Object.keys(mailbox).sort()).toEqual([
+          "accessLevel",
+          "address",
+          "createdAt",
+          "deletedAt",
+          "displayName",
+          "id",
+          "isActive",
+          "kind",
+          "mailDomainId",
+          "updatedAt"
+        ]);
+      }
     } finally {
       await env.DB.batch([
         env.DB.prepare("DELETE FROM mailbox_grants WHERE mailbox_id = 'mbx_api_off'"),
