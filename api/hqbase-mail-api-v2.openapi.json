@@ -973,9 +973,9 @@
         ],
         "responses": {
           "200": {
-            "description": "Attachment",
+            "description": "Attachment bytes with the recorded Content-Type of the attachment",
             "content": {
-              "application/octet-stream": {
+              "*/*": {
                 "schema": {
                   "type": "string",
                   "contentEncoding": "binary"
