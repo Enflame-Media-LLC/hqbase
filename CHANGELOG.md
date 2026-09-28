@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### New
+
+- Show `domainEnabled` on each v1 mailbox address. v1 clients can now see when an owner turns off
+  or disconnects an email domain. HQBase already stops mail for that domain.
+
 ## 1.4.2
 
 ### Fixed

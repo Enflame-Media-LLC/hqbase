@@ -3700,7 +3700,8 @@
           "displayName",
           "receiveEnabled",
           "sendEnabled",
-          "isPrimary"
+          "isPrimary",
+          "domainEnabled"
         ],
         "properties": {
           "id": {
@@ -3728,6 +3729,10 @@
           },
           "isPrimary": {
             "type": "boolean"
+          },
+          "domainEnabled": {
+            "type": "boolean",
+            "description": "Whether the owner keeps this address's email domain active in HQBase. False when the domain is turned off or disconnected. HQBase does not deliver or send mail for a domain that is not active. Installations before this field was added omit it."
           }
         }
       },

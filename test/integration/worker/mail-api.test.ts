@@ -456,7 +456,8 @@ describe("HQBase Mail API", () => {
             displayName: "Support",
             receiveEnabled: true,
             sendEnabled: true,
-            isPrimary: true
+            isPrimary: true,
+            domainEnabled: true
           }
         ],
         displayName: "Support",
@@ -479,6 +480,52 @@ describe("HQBase Mail API", () => {
     expect(legacyCookie.status).toBe(200);
     const legacyBearer = await apiFetch("/api/messages", readToken);
     expect(legacyBearer.status).toBe(401);
+  });
+
+  it("reports whether each v1 mailbox address domain is active", async () => {
+    const stamp = new Date().toISOString();
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO mail_domains
+         (id, name, receiving_status, sending_status, dns_status, is_enabled, created_at, updated_at)
+         VALUES ('dom_api_off', 'off.example', 'ready', 'ready', 'ready', 0, ?, ?)`
+      ).bind(stamp, stamp),
+      env.DB.prepare(
+        `INSERT INTO mailboxes
+         (id, address, mail_domain_id, display_name, is_active, created_at, updated_at)
+         VALUES ('mbx_api_off', 'team@off.example', 'dom_api_off', 'Team', 1, ?, ?)`
+      ).bind(stamp, stamp),
+      grantRow("mbx_api_off")
+    ]);
+    const domainStates = async () => {
+      const response = await apiFetch("/api/v1/mailboxes", v1ReadToken);
+      expect(response.status, await response.clone().text()).toBe(200);
+      const mailboxes = (await response.json()) as Array<{
+        id: string;
+        isActive: boolean;
+        addresses: Array<{ domainEnabled: boolean; receiveEnabled: boolean }>;
+      }>;
+      return Object.fromEntries(
+        mailboxes.map((mailbox) => [mailbox.id, mailbox.addresses[0]?.domainEnabled])
+      );
+    };
+
+    try {
+      expect(await domainStates()).toEqual({ mbx_api: true, mbx_api_off: false });
+
+      await env.DB.prepare("UPDATE mail_domains SET is_enabled = 1 WHERE id = 'dom_api_off'").run();
+      expect(await domainStates()).toEqual({ mbx_api: true, mbx_api_off: true });
+
+      const v2 = await apiFetch("/api/v2/mailboxes", readToken);
+      const v2Mailboxes = (await v2.json()) as Array<Record<string, unknown>>;
+      expect(v2Mailboxes.every((mailbox) => !("domainEnabled" in mailbox))).toBe(true);
+    } finally {
+      await env.DB.batch([
+        env.DB.prepare("DELETE FROM mailbox_grants WHERE mailbox_id = 'mbx_api_off'"),
+        env.DB.prepare("DELETE FROM mailboxes WHERE id = 'mbx_api_off'"),
+        env.DB.prepare("DELETE FROM mail_domains WHERE id = 'dom_api_off'")
+      ]);
+    }
   });
 
   it("opens an access-scoped wake-only WebSocket", async () => {
