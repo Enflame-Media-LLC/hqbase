@@ -370,6 +370,40 @@ describe("HQBase MCP server", () => {
     ).resolves.toMatchObject({ status: 401 });
   });
 
+  it("exports an attachment filename pattern that works without Unicode regex flags", async () => {
+    const response = await mcpRequest(
+      { jsonrpc: "2.0", id: 5, method: "tools/list", params: {} },
+      fullToken,
+      "/mcp/full"
+    );
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      result: {
+        tools: Array<{
+          name: string;
+          inputSchema: { properties?: { filename?: { pattern?: string } } };
+        }>;
+      };
+    };
+    const pattern = payload.result.tools.find((tool) => tool.name === "add_draft_attachment")
+      ?.inputSchema.properties?.filename?.pattern;
+    expect(pattern).toBeTypeOf("string");
+    if (!pattern) throw new Error("Attachment filename pattern is missing.");
+
+    // MCP JSON Schema patterns do not carry JavaScript regular expression flags.
+    const filenamePattern = new RegExp(pattern);
+    for (const filename of ["report.pdf", "résumé.pdf", "邮件.png", "📎.txt"]) {
+      expect(filenamePattern.test(filename)).toBe(true);
+    }
+    for (const filename of ["a/b.txt", "a\\b.txt", 'a"b.txt']) {
+      expect(filenamePattern.test(filename)).toBe(false);
+    }
+    for (let codePoint = 0; codePoint <= 0x9f; codePoint += 1) {
+      if (codePoint > 0x1f && codePoint < 0x7f) continue;
+      expect(filenamePattern.test(`a${String.fromCodePoint(codePoint)}b.txt`)).toBe(false);
+    }
+  });
+
   it("rejects MCP access while a user still has a temporary password", async () => {
     const timestamp = new Date().toISOString();
     await env.DB.prepare(

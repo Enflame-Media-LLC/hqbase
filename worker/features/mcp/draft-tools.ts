@@ -183,7 +183,8 @@ function registerDraftAttachmentTools(
           .trim()
           .min(1)
           .max(255)
-          .regex(/^[^\p{Cc}/\\"]+$/u),
+          // biome-ignore lint/suspicious/noControlCharactersInRegex: Reject C0 and C1 controls with a portable JSON Schema pattern.
+          .regex(/^[^\x00-\x1f\x7f-\x9f/\\"]+$/),
         contentType: z
           .string()
           .trim()
