@@ -6,6 +6,7 @@ import type { HonoApp } from "../../lib/env";
 import { readJson } from "../../lib/json";
 import { parseWith } from "../../lib/validation";
 import { recordAudit } from "../audit/service";
+import { listMailDomains } from "../domains/queries";
 import { ignoreMailEventFailure, publishMailboxMailEvent } from "../events/service";
 
 import { restoreMailbox, softDeleteMailbox } from "./lifecycle-service";
@@ -19,7 +20,13 @@ export const mailboxReadRoutes = new Hono<HonoApp>();
 const listForUser = async (c: Context<HonoApp>) => {
   const auth = await requireMailApiPrincipal(c.env, c.req.raw, "mail:read");
   const mailboxes = await listMailboxesForUser(c.env.DB, auth.principal.id, auth.principal.role);
-  return c.json(mailApiBasePath(c.req.raw) === "/api/v1" ? mailboxes.map(toV1Mailbox) : mailboxes);
+  if (mailApiBasePath(c.req.raw) !== "/api/v1") return c.json(mailboxes);
+  const enabledDomainIds = new Set(
+    (await listMailDomains(c.env.DB)).filter((domain) => domain.isEnabled).map(({ id }) => id)
+  );
+  return c.json(
+    mailboxes.map((mailbox) => toV1Mailbox(mailbox, enabledDomainIds.has(mailbox.mailDomainId)))
+  );
 };
 
 mailboxRoutes.get("/", listForUser);
@@ -107,7 +114,7 @@ function scheduleMailboxEvent(c: Context<HonoApp>, mailboxId: string): void {
 
 type MailboxWithAccess = Awaited<ReturnType<typeof listMailboxesForUser>>[number];
 
-function toV1Mailbox(mailbox: MailboxWithAccess) {
+function toV1Mailbox(mailbox: MailboxWithAccess, domainEnabled: boolean) {
   return {
     id: mailbox.id,
     address: mailbox.address,
@@ -120,7 +127,8 @@ function toV1Mailbox(mailbox: MailboxWithAccess) {
         displayName: mailbox.displayName,
         receiveEnabled: mailbox.isActive,
         sendEnabled: mailbox.isActive,
-        isPrimary: true
+        isPrimary: true,
+        domainEnabled
       }
     ],
     displayName: mailbox.displayName,

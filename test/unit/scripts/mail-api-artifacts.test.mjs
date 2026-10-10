@@ -273,6 +273,11 @@ describe("Mail API public artifacts", () => {
       items: { $ref: "#/components/schemas/MailboxAddress" }
     });
     expect(v1OpenApi.components.schemas.MailboxAddress).toBeDefined();
+    expect(v1OpenApi.components.schemas.MailboxAddress.required).toContain("domainEnabled");
+    expect(v1OpenApi.components.schemas.MailboxAddress.properties.domainEnabled).toMatchObject({
+      type: "boolean"
+    });
+    expect(openApi.components.schemas.Mailbox.properties.domainEnabled).toBeUndefined();
     expect(v1OpenApi.components.schemas.Mailbox.properties.displayName.description).toContain(
       "sender name"
     );
