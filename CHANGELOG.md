@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- Update ProseMirror, the MCP SDK, Hono, and other dependencies to versions with security fixes.
+  This includes a fix for unsafe content pasted into the message editor.
+
 ### New
 
 - Show `domainEnabled` on each v1 mailbox address. v1 clients can now see when an owner turns off
