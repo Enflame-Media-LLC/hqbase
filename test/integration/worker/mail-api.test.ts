@@ -663,6 +663,7 @@ describe("HQBase Mail API", () => {
 
     const attachment = await apiFetch("/api/v2/attachments/att_api", readToken);
     expect(attachment.status).toBe(200);
+    expect(attachment.headers.get("content-type")).toBe("text/plain");
     expect(await attachment.text()).toBe("hello");
   });
 

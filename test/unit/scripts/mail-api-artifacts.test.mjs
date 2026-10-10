@@ -109,6 +109,15 @@ describe("Mail API public artifacts", () => {
   it.each([
     [1, v1OpenApi],
     [2, openApi]
+  ])("declares any media type for attachment downloads in v%i", (version, document) => {
+    const content =
+      document.paths[`/api/v${version}/attachments/{id}`].get.responses["200"].content;
+    expect(Object.keys(content)).toEqual(["*/*"]);
+  });
+
+  it.each([
+    [1, v1OpenApi],
+    [2, openApi]
   ])("separates draft selections from saved snapshots in v%i", (version, document) => {
     const schemas = document.components.schemas;
     const validator = new AjvJsonSchemaValidator();
