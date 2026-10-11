@@ -15,6 +15,8 @@ import { apiRoutes } from "./routes";
 
 export { MailEvents };
 
+const STATIC_FILE_DIRECTORIES = ["/assets/", "/fonts/", "/icons/", "/sounds/"];
+
 export default {
   async fetch(request: Request, env: WorkerEnv, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -28,6 +30,11 @@ export default {
     if (mcpResponse) return mcpResponse;
     if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/management/")) {
       return apiRoutes.fetch(request, env, ctx);
+    }
+    // Existing static files never reach the Worker. A missing one must not get the app page,
+    // because the browser or the service worker can keep that HTML in place of a script.
+    if (STATIC_FILE_DIRECTORIES.some((directory) => url.pathname.startsWith(directory))) {
+      return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
     }
 
     const portal = request.headers.get("accept")?.includes("text/html")
