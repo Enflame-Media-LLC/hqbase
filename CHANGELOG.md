@@ -1,9 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.4.3
 
 ### Fixed
 
+- Let MCP clients such as ChatGPT discover the HQBase tools. The attachment file name rule in the
+  tool list now works without Unicode regular expression support. Unicode file names stay valid,
+  and unsafe characters are still rejected.
+- Declare any media type for attachment downloads in the Mail API OpenAPI documents. Generated
+  clients now accept typed files, for example PNG or PDF.
 - Update ProseMirror, the MCP SDK, Hono, and other dependencies to versions with security fixes.
   This includes a fix for unsafe content pasted into the message editor.
 
