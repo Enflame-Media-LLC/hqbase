@@ -148,7 +148,8 @@ async function publish(version) {
     const file = resolve(temporary, "nightly.json");
     writeFileSync(file, `${JSON.stringify(nightlyEnvelope)}\n`);
     gh(["release", "upload", "nightly", file, "--repo", repository, "--clobber"]);
-    await waitForNightlyPointer(manifest);
+    const reads = await waitForNightlyPointer(manifest);
+    console.log(`Nightly pointer matched the candidate after ${reads} public reads.`);
   } finally {
     rmSync(temporary, { recursive: true, force: true });
   }
@@ -161,17 +162,21 @@ async function publish(version) {
   console.log(`Nightly ${version} is verified. Stable remains ${before.tag_name}.`);
 }
 
+// GitHub can serve the replaced pointer for more than one minute after an upload.
+export const NIGHTLY_POINTER_READS = 61;
+export const NIGHTLY_POINTER_INTERVAL_MS = 5_000;
+
 export async function waitForNightlyPointer(expected, options = {}) {
   const readManifest =
     options.readManifest ??
     (async () => verifyManifest(await json(`${base}/nightly/nightly.json`), undefined, "nightly"));
   const sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
-  for (let attempt = 0; attempt < 30; attempt += 1) {
+  for (let attempt = 0; attempt < NIGHTLY_POINTER_READS; attempt += 1) {
     const published = await readManifest();
     const order = compareVersions(published.version, expected.version);
-    if (order === 0 && published.artifact.sha256 === expected.artifact.sha256) return;
+    if (order === 0 && published.artifact.sha256 === expected.artifact.sha256) return attempt + 1;
     if (order >= 0) throw new Error("Nightly pointer verification failed.");
-    if (attempt < 29) await sleep(2_000);
+    if (attempt < NIGHTLY_POINTER_READS - 1) await sleep(NIGHTLY_POINTER_INTERVAL_MS);
   }
   throw new Error("Nightly pointer did not advance to the verified candidate.");
 }

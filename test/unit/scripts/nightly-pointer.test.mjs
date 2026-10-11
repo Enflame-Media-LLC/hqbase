@@ -1,5 +1,10 @@
+import { readFileSync } from "node:fs";
 import { expect, it, vi } from "vitest";
-import { waitForNightlyPointer } from "../../../scripts/release/channels.mjs";
+import {
+  NIGHTLY_POINTER_INTERVAL_MS,
+  NIGHTLY_POINTER_READS,
+  waitForNightlyPointer
+} from "../../../scripts/release/channels.mjs";
 
 const expected = { version: "1.4.1", artifact: { sha256: "a".repeat(64) } };
 
@@ -9,9 +14,9 @@ it("waits for an older valid pointer to advance to the exact candidate", async (
     .mockResolvedValueOnce({ ...expected, version: "1.4.0" })
     .mockResolvedValueOnce(expected);
   const sleep = vi.fn();
-  await waitForNightlyPointer(expected, { readManifest, sleep });
+  await expect(waitForNightlyPointer(expected, { readManifest, sleep })).resolves.toBe(2);
   expect(readManifest).toHaveBeenCalledTimes(2);
-  expect(sleep).toHaveBeenCalledExactlyOnceWith(2_000);
+  expect(sleep).toHaveBeenCalledExactlyOnceWith(5_000);
 });
 
 it.each([
@@ -43,6 +48,18 @@ it("fails after bounded retries when the old pointer persists", async () => {
   await expect(waitForNightlyPointer(expected, { readManifest, sleep })).rejects.toThrow(
     "did not advance"
   );
-  expect(readManifest).toHaveBeenCalledTimes(30);
-  expect(sleep).toHaveBeenCalledTimes(29);
+  expect(readManifest).toHaveBeenCalledTimes(61);
+  expect(sleep).toHaveBeenCalledTimes(60);
+});
+
+it("waits five minutes inside the publish job time limit", () => {
+  const waitMs = (NIGHTLY_POINTER_READS - 1) * NIGHTLY_POINTER_INTERVAL_MS;
+  expect(waitMs).toBe(5 * 60_000);
+  const workflow = readFileSync(
+    new URL("../../../.github/workflows/release.yml", import.meta.url),
+    "utf8"
+  );
+  const publishJob = workflow.slice(workflow.indexOf("\n  publish:"));
+  const timeoutMinutes = Number(publishJob.match(/timeout-minutes: (\d+)/)?.[1]);
+  expect(timeoutMinutes * 60_000).toBeGreaterThanOrEqual(waitMs * 2);
 });
