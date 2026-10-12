@@ -47,8 +47,32 @@ const CACHE_NAME = ${JSON.stringify(cacheName)};
 const PRECACHE_URLS = ${JSON.stringify(precacheUrls, null, 2)};
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)));
+  event.waitUntil(precache());
 });
+
+async function precache() {
+  const entries = await Promise.all(
+    PRECACHE_URLS.map(async (url) => [url, await precacheResponse(url)])
+  );
+  const cache = await caches.open(CACHE_NAME);
+  await Promise.all(entries.map(([url, response]) => cache.put(url, response)));
+}
+
+async function precacheResponse(url) {
+  // The browser cache can hold the app page from an earlier request for a missing file.
+  const response = await fetch(url, { cache: "reload" });
+  const type = (response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (!response.ok || (type === "text/html") !== (url === "/offline.html")) {
+    throw new Error("A precache file has an unexpected response.");
+  }
+  if (!response.redirected) return response;
+  // A navigation cannot use a stored redirect, so keep only the final response.
+  return new Response(await response.blob(), {
+    headers: response.headers,
+    status: response.status,
+    statusText: response.statusText
+  });
+}
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(

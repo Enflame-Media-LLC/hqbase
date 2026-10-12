@@ -1,4 +1,5 @@
 import * as React from "react";
+import { LoadBoundary, lazyComponent } from "@/components/layout/load-boundary";
 
 import type { Mailbox } from "@/features/mailboxes/types";
 import { ConversationMessages } from "@/features/messages/conversation-messages";
@@ -22,7 +23,7 @@ export type {
 } from "./composer-context";
 export { ComposerInlineTarget, useComposer } from "./composer-context";
 
-const ComposeDialog = React.lazy(() =>
+const ComposeDialog = lazyComponent(() =>
   import("./compose-dialog").then((module) => ({ default: module.ComposeDialog }))
 );
 
@@ -272,95 +273,101 @@ export function ComposerHost({
         const inlineTarget = session.detached ? null : (inlineTargets[session.id] ?? parkingTarget);
         const presentation = session.detached ? "window" : "thread";
         return (
-          <React.Suspense fallback={null} key={session.id}>
-            <ComposeDialog
-              defaultFromMailboxId={defaultFromMailboxId}
-              dockIndex={Math.max(
-                0,
-                minimizedSessions.findIndex((item) => item.id === session.id)
-              )}
-              dockTarget={dockTarget}
-              draftId={session.initialDraftId}
-              initialTo={session.initialTo}
-              inlineTarget={inlineTarget}
-              mailboxes={mailboxes}
-              message={session.message}
-              minimized={session.minimized}
-              mode={session.mode}
-              open
-              presentation={presentation}
-              threadContext={
-                session.messages.length > 0 ? (
-                  <ConversationMessages compact messages={session.messages} />
-                ) : undefined
-              }
-              threadMessages={session.messages}
-              windowSlot={Math.max(
-                0,
-                windowSessions.length -
-                  1 -
-                  windowSessions.findIndex((item) => item.id === session.id)
-              )}
-              onDetach={
-                presentation === "thread"
-                  ? () => {
-                      updateSessions((current) =>
-                        current.map((candidate) =>
-                          candidate.id === session.id
-                            ? { ...candidate, detached: true, minimized: false }
-                            : candidate
-                        )
-                      );
-                    }
-                  : undefined
-              }
-              onDraftReady={(draftId) => {
-                updateSessions((current) =>
-                  current.map((candidate) =>
-                    candidate.id === session.id ? { ...candidate, draftId } : candidate
-                  )
-                );
-              }}
-              onDraftsChange={() => onDraftsChangeRef.current()}
-              onManageSignatures={() => onManageSignaturesRef.current()}
-              onMinimizedChange={(minimized) => {
-                updateSessions((current) =>
-                  current.map((candidate) =>
-                    candidate.id === session.id ? { ...candidate, minimized } : candidate
-                  )
-                );
-              }}
-              onOpenChange={(open) => {
-                if (!open) closeSession(session.id);
-              }}
-              onReturnToThread={
-                origin
-                  ? () => {
-                      updateSessions((current) =>
-                        current.map((candidate) =>
-                          candidate.id === session.id
-                            ? {
-                                ...candidate,
-                                detached: false,
-                                minimized: false
-                              }
-                            : candidate
-                        )
-                      );
-                      navigateRef.current({
-                        kind: "mail",
-                        folder: origin.folder,
-                        messageId: origin.messageId
-                      });
-                    }
-                  : undefined
-              }
-              onSent={() => {
-                onSentRef.current();
-                session.onSent?.();
-              }}
-            />
-          </React.Suspense>
+          <LoadBoundary
+            key={session.id}
+            message="HQBase could not open the message editor."
+            variant="notice"
+          >
+            <React.Suspense fallback={null}>
+              <ComposeDialog
+                defaultFromMailboxId={defaultFromMailboxId}
+                dockIndex={Math.max(
+                  0,
+                  minimizedSessions.findIndex((item) => item.id === session.id)
+                )}
+                dockTarget={dockTarget}
+                draftId={session.initialDraftId}
+                initialTo={session.initialTo}
+                inlineTarget={inlineTarget}
+                mailboxes={mailboxes}
+                message={session.message}
+                minimized={session.minimized}
+                mode={session.mode}
+                open
+                presentation={presentation}
+                threadContext={
+                  session.messages.length > 0 ? (
+                    <ConversationMessages compact messages={session.messages} />
+                  ) : undefined
+                }
+                threadMessages={session.messages}
+                windowSlot={Math.max(
+                  0,
+                  windowSessions.length -
+                    1 -
+                    windowSessions.findIndex((item) => item.id === session.id)
+                )}
+                onDetach={
+                  presentation === "thread"
+                    ? () => {
+                        updateSessions((current) =>
+                          current.map((candidate) =>
+                            candidate.id === session.id
+                              ? { ...candidate, detached: true, minimized: false }
+                              : candidate
+                          )
+                        );
+                      }
+                    : undefined
+                }
+                onDraftReady={(draftId) => {
+                  updateSessions((current) =>
+                    current.map((candidate) =>
+                      candidate.id === session.id ? { ...candidate, draftId } : candidate
+                    )
+                  );
+                }}
+                onDraftsChange={() => onDraftsChangeRef.current()}
+                onManageSignatures={() => onManageSignaturesRef.current()}
+                onMinimizedChange={(minimized) => {
+                  updateSessions((current) =>
+                    current.map((candidate) =>
+                      candidate.id === session.id ? { ...candidate, minimized } : candidate
+                    )
+                  );
+                }}
+                onOpenChange={(open) => {
+                  if (!open) closeSession(session.id);
+                }}
+                onReturnToThread={
+                  origin
+                    ? () => {
+                        updateSessions((current) =>
+                          current.map((candidate) =>
+                            candidate.id === session.id
+                              ? {
+                                  ...candidate,
+                                  detached: false,
+                                  minimized: false
+                                }
+                              : candidate
+                          )
+                        );
+                        navigateRef.current({
+                          kind: "mail",
+                          folder: origin.folder,
+                          messageId: origin.messageId
+                        });
+                      }
+                    : undefined
+                }
+                onSent={() => {
+                  onSentRef.current();
+                  session.onSent?.();
+                }}
+              />
+            </React.Suspense>
+          </LoadBoundary>
         );
       })}
     </ComposerContext.Provider>
