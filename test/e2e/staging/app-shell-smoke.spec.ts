@@ -37,6 +37,26 @@ test("deployed HQBase PWA shell is ready", async ({ page, request }) => {
   }).toPass({ intervals: [2_000, 5_000, 10_000], timeout: 60_000 });
 });
 
+test("deployed HQBase never answers a missing static file with the app page", async ({
+  request
+}) => {
+  const scriptHeaders = { "sec-fetch-dest": "script", "sec-fetch-mode": "cors" };
+  const missing = await request.get("/assets/hqbase-staging-missing-file.js", {
+    headers: scriptHeaders
+  });
+  expect(missing.status()).toBe(404);
+  expect(missing.headers()["cache-control"]).toBe("no-store");
+  expect(missing.headers()["content-type"] ?? "").not.toContain("text/html");
+
+  const appPage = await (await request.get("/")).text();
+  const entry = appPage.match(/src="(\/assets\/[^"]+\.js)"/)?.[1];
+  expect(entry).toBeTruthy();
+  const existing = await request.get(entry ?? "", { headers: scriptHeaders });
+  expect(existing.status()).toBe(200);
+  expect(existing.headers()["content-type"]).toContain("javascript");
+  expect(existing.headers()["cache-control"]).toBe("public, max-age=31536000, immutable");
+});
+
 test("deployed HQBase publishes the v2 Mail API OAuth resource", async ({ request }) => {
   const origin = new URL(stagingUrl).origin;
   const metadata = await getSuccessfulResponseBody(

@@ -143,7 +143,11 @@ describe("HQBase installation resources", () => {
       "/skills/hqbase-mailbox/SKILL.md",
       "/skills/hqbase-provisioner/SKILL.md",
       "/AGENTS.md",
-      "/agents.md"
+      "/agents.md",
+      "/assets/*",
+      "/fonts/*",
+      "/icons/*",
+      "/sounds/*"
     ]);
   });
 
