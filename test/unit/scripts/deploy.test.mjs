@@ -243,6 +243,9 @@ describe("HQBase release deployment", () => {
     const prepared = prepareRequiredWorkerConfig(staleConfig);
 
     expect(prepared.assets.run_worker_first).toContain("/management/*");
+    expect(prepared.assets.run_worker_first).toEqual(
+      expect.arrayContaining(["/assets/*", "/fonts/*", "/icons/*", "/sounds/*"])
+    );
     expect(prepared.durable_objects.bindings).toEqual([
       { name: "CUSTOMER_EVENTS", class_name: "CustomerEvents" },
       { name: "MAIL_EVENTS", class_name: "MailEvents" }
@@ -544,7 +547,11 @@ describe("HQBase release deployment", () => {
         "/skills/hqbase-mailbox/SKILL.md",
         "/skills/hqbase-provisioner/SKILL.md",
         "/AGENTS.md",
-        "/agents.md"
+        "/agents.md",
+        "/assets/*",
+        "/fonts/*",
+        "/icons/*",
+        "/sounds/*"
       ]
     });
   });

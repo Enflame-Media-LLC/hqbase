@@ -15,11 +15,38 @@ import { apiRoutes } from "./routes";
 
 export { MailEvents };
 
+// These directories run the Worker first (run_worker_first), because Cloudflare otherwise answers
+// a missing file with the app page. The browser or the service worker can keep that HTML in place
+// of a script.
 const STATIC_FILE_DIRECTORIES = ["/assets/", "/fonts/", "/icons/", "/sounds/"];
+
+async function serveStaticFile(request: Request, env: WorkerEnv, url: URL): Promise<Response> {
+  const response = await env.ASSETS.fetch(request);
+  if (response.headers.get("content-type")?.toLowerCase().startsWith("text/html")) {
+    return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
+  }
+  if (
+    !url.pathname.startsWith("/assets/") ||
+    (response.status !== 200 && response.status !== 304)
+  ) {
+    return response;
+  }
+  // _headers rules do not apply to Worker responses. Hashed file names never change content.
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", "public, max-age=31536000, immutable");
+  return new Response(response.body, {
+    headers,
+    status: response.status,
+    statusText: response.statusText
+  });
+}
 
 export default {
   async fetch(request: Request, env: WorkerEnv, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+    if (STATIC_FILE_DIRECTORIES.some((directory) => url.pathname.startsWith(directory))) {
+      return serveStaticFile(request, env, url);
+    }
     const mailApiDiscovery = handleMailApiDiscovery(request, env);
     if (mailApiDiscovery) return mailApiDiscovery;
     const mailApiMetadata = handleMailApiMetadata(request, env);
@@ -30,11 +57,6 @@ export default {
     if (mcpResponse) return mcpResponse;
     if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/management/")) {
       return apiRoutes.fetch(request, env, ctx);
-    }
-    // Existing static files never reach the Worker. A missing one must not get the app page,
-    // because the browser or the service worker can keep that HTML in place of a script.
-    if (STATIC_FILE_DIRECTORIES.some((directory) => url.pathname.startsWith(directory))) {
-      return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
     }
 
     const portal = request.headers.get("accept")?.includes("text/html")
