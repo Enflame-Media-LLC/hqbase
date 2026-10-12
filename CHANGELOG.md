@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.5
+
+### Fixed
+
+- Return `404` for a missing file under `/assets/`, `/fonts/`, `/icons/`, or `/sounds/`, not the
+  app page. HQBase 1.4.4 included this change, but Cloudflare served the app page before the Worker
+  could run. A browser or an installed app could keep that page in place of a script, and a page
+  such as Settings then failed to open. These directories now run the Worker first. Each request to
+  them counts as a Worker request; the installed app cache serves most of them.
+
 ## 1.4.4
 
 ### Fixed
