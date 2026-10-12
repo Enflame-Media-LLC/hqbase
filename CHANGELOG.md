@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.4
+
+### Fixed
+
+- Keep the app visible when a page or the message editor cannot open. HQBase reloads once after a
+  load failure. If the failure continues, HQBase says that it could not open the page and offers
+  **Reload**. Before, the window could stay blank until a hard reload.
+- Keep wrong files out of the installed app cache. The service worker reads each file from the
+  network and installs only when every file is correct. A missing script or style now returns
+  `404`, not the app page.
+- Let the offline page open from the installed app cache when the server redirects
+  `/offline.html`.
+
 ## 1.4.3
 
 ### Fixed
